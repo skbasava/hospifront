@@ -1,10 +1,16 @@
 # Frappe Health (Marley) + ERPNext stack, adapted from frappe_docker pwd.yml.
 # Requires the custom image built by ./frappe/build-image.sh (tag: hims-frappe:v15).
 #
+# Two connection modes (see ./setup.sh, which picks one and writes the env files):
+#   local   installs a full Frappe Health backend in Docker:
+#             docker compose --profile local up -d
+#   remote  connects the BFF to an existing Frappe server (FRAPPE_BASE_URL):
+#             docker compose up -d
+#
 # Services:
-#   frontend   nginx serving Frappe Desk + REST API on :8080
-#   backend    gunicorn (Frappe app server)
-#   create-site  one-shot: creates site "frontend", installs erpnext + healthcare
+#   frontend   nginx serving Frappe Desk + REST API on :8080   [local profile]
+#   backend    gunicorn (Frappe app server)                    [local profile]
+#   create-site  one-shot: creates site "frontend", installs erpnext + healthcare [local]
 #   bff        thin backend-for-frontend (this repo's /bff) — internal only
 #   web        the HIMS React app on :3000, proxies /api → bff
 #
@@ -13,6 +19,7 @@
 services:
   backend:
     image: hims-frappe:v15
+    profiles: [local]
     networks: [frappe_network]
     restart: on-failure
     volumes:
@@ -29,6 +36,7 @@ services:
 
   configurator:
     image: hims-frappe:v15
+    profiles: [local]
     networks: [frappe_network]
     entrypoint: [bash, -c]
     command:
@@ -52,6 +60,7 @@ services:
 
   create-site:
     image: hims-frappe:v15
+    profiles: [local]
     networks: [frappe_network]
     volumes:
       - sites:/home/frappe/frappe-bench/sites
@@ -89,6 +98,7 @@ services:
 
   db:
     image: mariadb:11.8
+    profiles: [local]
     networks: [frappe_network]
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
@@ -110,6 +120,7 @@ services:
 
   frontend:
     image: hims-frappe:v15
+    profiles: [local]
     networks: [frappe_network]
     depends_on:
       - websocket
@@ -133,6 +144,7 @@ services:
 
   queue-long:
     image: hims-frappe:v15
+    profiles: [local]
     networks: [frappe_network]
     restart: on-failure
     command: [bench, worker, --queue, "long,default,short"]
@@ -145,6 +157,7 @@ services:
 
   queue-short:
     image: hims-frappe:v15
+    profiles: [local]
     networks: [frappe_network]
     restart: on-failure
     command: [bench, worker, --queue, "short,default"]
@@ -157,6 +170,7 @@ services:
 
   redis-queue:
     image: redis:6.2-alpine
+    profiles: [local]
     networks: [frappe_network]
     restart: on-failure
     volumes:
@@ -164,11 +178,13 @@ services:
 
   redis-cache:
     image: redis:6.2-alpine
+    profiles: [local]
     networks: [frappe_network]
     restart: on-failure
 
   scheduler:
     image: hims-frappe:v15
+    profiles: [local]
     networks: [frappe_network]
     restart: on-failure
     command: [bench, schedule]
@@ -181,6 +197,7 @@ services:
 
   websocket:
     image: hims-frappe:v15
+    profiles: [local]
     networks: [frappe_network]
     restart: on-failure
     command: [node, /home/frappe/frappe-bench/apps/frappe/socketio.js]
@@ -201,11 +218,13 @@ services:
     env_file:
       - ./bff/.env
     environment:
-      # Compose-network address of the Frappe nginx service.
-      FRAPPE_BASE_URL: http://frontend:8080
-    depends_on:
-      create-site:
-        condition: service_completed_successfully
+      # local mode: compose-internal address of the Frappe nginx service.
+      # remote mode: set FRAPPE_BASE_URL in .env (e.g. https://frappe.example.com).
+      FRAPPE_BASE_URL: ${FRAPPE_BASE_URL:-http://frontend:8080}
+    # No depends_on create-site: in remote mode the Frappe stack is not started,
+    # and the BFF tolerates Frappe being unreachable (health reports "degraded").
+    # In local mode, wait for create-site to finish before generating API keys —
+    # see deployment/README.md.
 
   web:
     build:
