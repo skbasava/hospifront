@@ -30,11 +30,12 @@ export function createApp(config: Config) {
   });
 
   app.get('/api/v1/health', async (c) => {
+    const target = new URL(config.frappeBaseUrl).host;
     try {
       await frappe.ping();
-      return c.json({ status: 'ok', frappe: 'up' });
+      return c.json({ status: 'ok', frappe: 'up', target, mode: config.deployMode });
     } catch {
-      return c.json({ status: 'degraded', frappe: 'down' }, 503);
+      return c.json({ status: 'degraded', frappe: 'down', target, mode: config.deployMode }, 503);
     }
   });
 
