@@ -87,6 +87,24 @@ export async function getBackendHealth(): Promise<'live' | 'demo'> {
   }
 }
 
+export interface BackendInfo {
+  status: 'ok' | 'degraded';
+  frappe: 'up' | 'down';
+  /** Host[:port] of the Frappe server the BFF is configured against. */
+  target: string;
+  /** 'local' = Docker Frappe stack, 'remote' = external Frappe server. */
+  mode: 'local' | 'remote';
+}
+
+/** Full connection details for the Settings page; null when the BFF is unreachable. */
+export async function getBackendInfo(): Promise<BackendInfo | null> {
+  try {
+    return await request<BackendInfo>('/api/v1/health', undefined, 3000);
+  } catch {
+    return null;
+  }
+}
+
 export async function searchPatients(q: string, limit = 20): Promise<PatientSummary[]> {
   const params = new URLSearchParams({ q, limit: String(limit) });
   const res = await request<{ data: PatientSummary[] }>(`/api/v1/patients/search?${params}`);
