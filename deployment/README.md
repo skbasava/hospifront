@@ -178,3 +178,4 @@ docker compose --profile local down -v # stop and DELETE all data (fresh start)
 | `create-site` fails (local) | Re-run `docker compose --profile local up create-site`; check DB container is healthy |
 | Registration 409 `DUPLICATE` | A Patient with that mobile already exists — search first |
 | Port already in use | Change the left-hand side of the `ports:` mapping in `compose.yml` |
+
