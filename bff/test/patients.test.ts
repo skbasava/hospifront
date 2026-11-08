@@ -113,6 +113,7 @@ beforeAll(async () => {
     bffApiToken: 'test-bff-token',
     allowedOrigins: ['http://localhost:5173'],
     upstreamTimeoutMs: 4000,
+    deployMode: 'local',
   };
   app = createApp(config);
 });
@@ -211,9 +212,11 @@ describe('POST /api/v1/patients', () => {
 });
 
 describe('GET /api/v1/health', () => {
-  it('reports frappe up', async () => {
+  it('reports frappe up with connection target and mode', async () => {
     const res = await call('/api/v1/health');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: 'ok', frappe: 'up' });
+    const body = await res.json();
+    expect(body).toMatchObject({ status: 'ok', frappe: 'up', mode: 'local' });
+    expect(body.target).toMatch(/^127\.0\.0\.1:\d+$/);
   });
 });
