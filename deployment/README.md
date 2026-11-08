@@ -1,23 +1,41 @@
 # Deployment — HIMS frontend + BFF + Frappe Health
 
-This folder brings up the full chain on any machine with Docker:
+Two ways to connect the HIMS to Frappe Health — pick one with the switch script:
+
+```bash
+cd deployment
+./setup.sh        # interactive: asks local vs remote
+```
+
+| Mode | What it does | Command it prepares |
+|---|---|---|
+| **local** | Installs a full Frappe Health backend (ERPNext + Marley) in Docker alongside the HIMS | `docker compose --profile local up -d` |
+| **remote** | Connects the BFF to an existing Frappe server you already run (LAN or cloud) | `docker compose up -d` |
+
+You can switch modes at any time by re-running `setup.sh` — it only rewrites
+env files, never touches data volumes.
+
+The chain, in both modes:
 
 ```
 browser → web (nginx, serves the React build, proxies /api → bff)
         → bff (Hono, thin REST adapter, port 3001 internal)
-        → frappe (MariaDB + Frappe/ERPNext + Marley "healthcare" app)
+        → frappe (LOCAL: MariaDB + Frappe/ERPNext + Marley containers)
+                   (REMOTE: your existing Frappe server over HTTP/S)
 ```
 
 The browser never talks to Frappe directly and never holds Frappe
 credentials. Frappe API keys live only in the BFF container.
 
-## 0. Prerequisites
+## Mode A — local (install Frappe Health in Docker)
+
+### A0. Prerequisites
 
 - Docker Engine 24+ with the Compose plugin (`docker compose version`)
 - ~6 GB free RAM for the Frappe stack (MariaDB + Redis + workers)
 - Ports free: **3000** (web) and **8080** (Frappe desk, optional exposure)
 
-## 1. Build the Frappe image
+### A1. Build the Frappe image
 
 The stock `frappe/erpnext` image does not include Marley (Frappe Health,
 app name `healthcare`). Build a custom image with both apps pinned:
@@ -36,12 +54,11 @@ is a **mandatory** dependency of Marley — do not remove it.
 > ABHA fields** on Patient, so the ABHA flow in the UI is a placeholder
 > until the ABDM adapter phase.
 
-## 2. Configure secrets
+### A2. Configure secrets
 
 ```bash
 cd deployment
-cp .env.example .env            # DB root password + site admin password
-cp bff/.env.example bff/.env    # BFF <-> Frappe credentials (step 4)
+./setup.sh local   # copies .env.example → .env and bff/.env.example → bff/.env
 ```
 
 Set strong values for `DB_ROOT_PASSWORD` and `ADMIN_PASSWORD` in `.env`.
@@ -50,13 +67,15 @@ the **same value** in `bff/.env` as `BFF_API_TOKEN`. The web build bakes
 `VITE_BFF_TOKEN` in at image build time; the BFF requires it as a Bearer
 token. Neither is a Frappe credential.
 
-## 3. Start the stack
+### A3. Start the stack
 
 ```bash
-docker compose up -d
+docker compose --profile local up -d
 ```
 
-First boot takes several minutes: `create-site` runs
+The `local` profile starts the Frappe infrastructure (db, redis, backend,
+workers, scheduler, websocket, create-site) plus the always-on `bff` and
+`web` services. First boot takes several minutes: `create-site` runs
 `bench new-site … --install-app erpnext` and then installs `healthcare`.
 Watch it with:
 
@@ -64,29 +83,47 @@ Watch it with:
 docker compose logs -f create-site
 ```
 
-## 4. Create Frappe API keys for the BFF
+## Mode B — remote (connect to an existing Frappe server)
 
-Once `create-site` exits 0:
+Use this when Frappe Health already runs somewhere — another host, a VM,
+or a managed Frappe/ERPNext installation.
 
-1. Open http://localhost:8080 and log in as `Administrator`
-   (password = `ADMIN_PASSWORD`).
-2. In Desk, go to **Users → Administrator** (better: create a dedicated
-   **integration user** with only the roles the BFF needs — least
-   privilege for production).
-3. Scroll to **API Access → Generate Keys**. Copy the API key and secret.
-4. Put them in `deployment/bff/.env` as `FRAPPE_API_KEY` /
-   `FRAPPE_API_SECRET`, then restart the BFF and web:
+### B1. Point the BFF at your server
+
+```bash
+cd deployment
+./setup.sh remote https://frappe.your-hospital.example
+```
+
+This writes `FRAPPE_BASE_URL` into both `.env` (compose override) and
+`bff/.env`. Your server must have:
+
+- the **`healthcare` app (Marley) installed on the site** — and ERPNext,
+  which Marley requires (`bench --site <site> install-app healthcare`)
+- network reachability from the machine running docker compose
+- API keys: Desk → integration user → **API Access → Generate Keys**
+  (a dedicated least-privilege user for production, Administrator is fine
+  for a first test)
+
+Put the keys in `deployment/bff/.env` (`FRAPPE_API_KEY` / `FRAPPE_API_SECRET`).
+
+### B2. Start only the HIMS layer
 
 ```bash
 docker compose up -d --build bff web
 ```
 
-## 5. Verify
+No Frappe containers are started in this mode (the `local` profile stays
+off). The Settings page in the app shows **Mode: Remote · external Frappe
+server** with your target host.
+
+## Verify (both modes)
 
 ```bash
 # BFF liveness through the web proxy (same origin the browser uses)
 curl -s http://localhost:3000/api/v1/health
-# → {"status":"ok","frappe":"up"}        (503 + "degraded" while keys are missing)
+# → {"status":"ok","frappe":"up","target":"frontend:8080","mode":"local"}
+#   (503 + "degraded" while keys are missing or Frappe is unreachable)
 
 # Patient search (empty query = recent registrations)
 curl -s -H "Authorization: Bearer $VITE_BFF_TOKEN" \
@@ -100,17 +137,18 @@ curl -s -X POST -H "Authorization: Bearer $VITE_BFF_TOKEN" \
 ```
 
 Then open **http://localhost:3000** — the header badge should read
-**Live** (green). Registration writes real Patient documents; you can see
-them in Desk under **Healthcare → Patient**.
+**Live** (green), and **Settings → Backend connection** shows the mode
+and target. Registration writes real Patient documents; in local mode you
+can see them in Desk under **Healthcare → Patient**.
 
 > Use **synthetic patient data only** in this environment. Never load real
 > patient records into a development deployment.
 
-## 6. Tear down / reset
+## Tear down / reset
 
 ```bash
-docker compose down          # stop, keep data volumes
-docker compose down -v       # stop and DELETE all data (fresh start)
+docker compose down                    # stop, keep data volumes
+docker compose --profile local down -v # stop and DELETE all data (fresh start)
 ```
 
 ## Architecture notes
@@ -135,6 +173,8 @@ docker compose down -v       # stop and DELETE all data (fresh start)
 |---|---|
 | Badge stuck on **Demo** | `docker compose logs bff`; usually missing/invalid `FRAPPE_API_KEY` |
 | `health` returns 502 `FRAPPE_AUTH` | Keys revoked or integration user lacks permissions |
-| `create-site` fails | Re-run `docker compose up create-site`; check DB container is healthy |
+| Remote mode: `health` 503 `degraded` | `FRAPPE_BASE_URL` wrong or server unreachable from the container — `docker compose exec bff wget -qO- $FRAPPE_BASE_URL` |
+| Remote mode: 404 on Patient endpoints | `healthcare` app not installed on the remote site |
+| `create-site` fails (local) | Re-run `docker compose --profile local up create-site`; check DB container is healthy |
 | Registration 409 `DUPLICATE` | A Patient with that mobile already exists — search first |
 | Port already in use | Change the left-hand side of the `ports:` mapping in `compose.yml` |
