@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { Activity, ArrowRightLeft, CalendarDays, CheckCircle2, ClipboardList, Droplets, HandMetal, ShieldCheck, Syringe, TrendingUp } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Activity, ArrowRightLeft, CalendarDays, CheckCircle2, ClipboardList, Droplets, HandMetal, Server, ShieldCheck, Syringe, TrendingUp } from 'lucide-react';
 import { appointmentList, inr } from '@/data/mock';
 import { StatusPill } from '@/components/StatusPill';
+import { BackendBadge } from '@/pages/Registration';
+import { useBackend } from '@/hooks/useBackend';
+import { getBackendInfo, type BackendInfo } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -172,6 +175,18 @@ export function ReportsPage() {
 
 export function SettingsPage() {
   const [toggles, setToggles] = useState({ abdm: true, sms: true, whatsapp: true, audit: true, mfa: false });
+  const backend = useBackend();
+  const [info, setInfo] = useState<BackendInfo | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => getBackendInfo().then((i) => !cancelled && setInfo(i));
+    load();
+    const t = setInterval(load, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, []);
   const items = [
     { key: 'abdm' as const, label: 'ABDM integration (sandbox)', desc: 'ABHA creation, verification and care-context linking at registration.' },
     { key: 'sms' as const, label: 'SMS reminders', desc: 'Appointment, report-ready and discharge notifications.' },
@@ -185,6 +200,42 @@ export function SettingsPage() {
         <h2 className="text-[20px] font-extrabold tracking-tight">Settings</h2>
         <p className="text-[13px] text-muted-foreground">Facility-level configuration — backend enforces these regardless of UI state.</p>
       </div>
+
+      {/* Backend connection — reflects the deployment mode chosen by deployment/setup.sh */}
+      <div className="card-surface p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <Server className="h-4.5 w-4.5 text-primary" />
+            <div>
+              <h3 className="text-[15px] font-bold">Backend connection</h3>
+              <p className="text-[12px] text-muted-foreground">Set at deploy time by <code className="rounded bg-muted px-1 py-0.5 text-[11px]">deployment/setup.sh</code> — local Docker install or remote Frappe server.</p>
+            </div>
+          </div>
+          <BackendBadge live={backend === 'live'} checking={backend === 'checking'} />
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-border bg-muted/40 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Mode</p>
+            <p className="mt-1 text-[14px] font-semibold">
+              {info ? (info.mode === 'local' ? 'Local · Frappe Health in Docker' : 'Remote · external Frappe server') : 'Not connected'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-muted/40 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Frappe target</p>
+            <p className="mt-1 truncate font-mono text-[13px] font-semibold text-slate-700">{info?.target ?? '—'}</p>
+          </div>
+        </div>
+        {info && info.frappe === 'down' && (
+          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-800 ring-1 ring-inset ring-amber-600/20">
+            The BFF is running but Frappe is unreachable at {info.target} — check the API keys and that the server is up.
+          </p>
+        )}
+        <p className="mt-3 text-[12px] text-muted-foreground">
+          Switch modes on the host: <code className="rounded bg-muted px-1 py-0.5 text-[11px]">./deployment/setup.sh local</code> installs Frappe Health in Docker;{' '}
+          <code className="rounded bg-muted px-1 py-0.5 text-[11px]">./deployment/setup.sh remote &lt;url&gt;</code> points the BFF at an existing server.
+        </p>
+      </div>
+
       <div className="card-surface divide-y divide-border/60">
         {items.map((it) => (
           <div key={it.key} className="flex items-center gap-4 px-5 py-4">
