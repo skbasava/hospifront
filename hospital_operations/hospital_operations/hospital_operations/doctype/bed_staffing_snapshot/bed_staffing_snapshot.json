@@ -1,0 +1,155 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:BSS-{#####}",
+ "creation": "2026-11-10 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "ward",
+  "shift",
+  "calculated_at",
+  "column_break_1",
+  "available_nurses",
+  "qualified_nurses",
+  "current_patients",
+  "staffed_bed_capacity",
+  "policy_version",
+  "section_break_1",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "ward",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Ward",
+   "options": "Healthcare Service Unit",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "shift",
+   "fieldtype": "Link",
+   "label": "Shift",
+   "options": "Shift Type"
+  },
+  {
+   "default": "Now",
+   "fieldname": "calculated_at",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Calculated At",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "available_nurses",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Available Nurses"
+  },
+  {
+   "default": "0",
+   "fieldname": "qualified_nurses",
+   "fieldtype": "Int",
+   "label": "Qualified Nurses"
+  },
+  {
+   "default": "0",
+   "fieldname": "current_patients",
+   "fieldtype": "Int",
+   "label": "Current Patients"
+  },
+  {
+   "default": "0",
+   "fieldname": "staffed_bed_capacity",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Staffed Bed Capacity"
+  },
+  {
+   "fieldname": "policy_version",
+   "fieldtype": "Data",
+   "label": "Policy Version"
+  },
+  {
+   "fieldname": "section_break_1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-11-10 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Hospital Operations",
+ "name": "Bed Staffing Snapshot",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Hospital Operations Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Bed Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nursing Supervisor",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "search_fields": "ward,shift",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "ward",
+ "track_changes": 1
+}

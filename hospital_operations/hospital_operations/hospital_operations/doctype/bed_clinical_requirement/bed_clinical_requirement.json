@@ -1,0 +1,63 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-11-10 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "requirement_type",
+  "operator",
+  "required_value",
+  "mandatory",
+  "clinical_reason"
+ ],
+ "fields": [
+  {
+   "fieldname": "requirement_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Requirement Type",
+   "options": "ICU_LEVEL\nVENTILATOR\nOXYGEN\nISOLATION\nCARDIAC_MONITORING\nACCESSIBILITY\nSPECIALTY\nOTHER",
+   "reqd": 1
+  },
+  {
+   "default": "=",
+   "fieldname": "operator",
+   "fieldtype": "Select",
+   "label": "Operator",
+   "options": "=\n!=\n>=\n<=\nIN\nNOT IN"
+  },
+  {
+   "fieldname": "required_value",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Required Value",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "mandatory",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Mandatory"
+  },
+  {
+   "fieldname": "clinical_reason",
+   "fieldtype": "Small Text",
+   "label": "Clinical Reason"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-11-10 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Hospital Operations",
+ "name": "Bed Clinical Requirement",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

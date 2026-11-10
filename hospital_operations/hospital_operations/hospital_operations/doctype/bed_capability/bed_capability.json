@@ -1,0 +1,139 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:BCAP-{#####}",
+ "creation": "2026-11-10 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "healthcare_service_unit",
+  "capability_type",
+  "capability_value",
+  "column_break_1",
+  "enabled",
+  "valid_from",
+  "valid_until",
+  "section_break_1",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "healthcare_service_unit",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Healthcare Service Unit",
+   "options": "Healthcare Service Unit",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "capability_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Capability Type",
+   "options": "ICU_LEVEL\nVENTILATOR\nOXYGEN\nISOLATION\nCARDIAC_MONITORING\nACCESSIBILITY\nSPECIALTY\nMONITORING\nOTHER",
+   "reqd": 1
+  },
+  {
+   "fieldname": "capability_value",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Capability Value"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "fieldname": "valid_from",
+   "fieldtype": "Datetime",
+   "label": "Valid From"
+  },
+  {
+   "fieldname": "valid_until",
+   "fieldtype": "Datetime",
+   "label": "Valid Until"
+  },
+  {
+   "fieldname": "section_break_1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-11-10 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Hospital Operations",
+ "name": "Bed Capability",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Hospital Operations Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Bed Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nursing Supervisor",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "search_fields": "healthcare_service_unit,capability_type",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "healthcare_service_unit",
+ "track_changes": 1
+}

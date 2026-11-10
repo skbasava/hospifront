@@ -1,0 +1,161 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:BAP-{#####}",
+ "creation": "2026-11-10 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "policy_name",
+  "version",
+  "enabled",
+  "column_break_1",
+  "reservation_expiry",
+  "section_break_1",
+  "clinical_priority_rules",
+  "eligibility_rules",
+  "cost_weights",
+  "waiting_time_rules",
+  "manual_override_permissions",
+  "section_break_2",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "policy_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Policy Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "version",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Version",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "120",
+   "description": "Minutes before an unconfirmed immediate reservation expires.",
+   "fieldname": "reservation_expiry",
+   "fieldtype": "Int",
+   "label": "Reservation Expiry (minutes)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_1",
+   "fieldtype": "Section Break",
+   "label": "Rules (JSON)"
+  },
+  {
+   "description": "Ordered clinical priority rules. No clinical values are hardcoded in Python.",
+   "fieldname": "clinical_priority_rules",
+   "fieldtype": "Code",
+   "label": "Clinical Priority Rules",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "eligibility_rules",
+   "fieldtype": "Code",
+   "label": "Eligibility Rules",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "cost_weights",
+   "fieldtype": "Code",
+   "label": "Cost Weights",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "waiting_time_rules",
+   "fieldtype": "Code",
+   "label": "Waiting Time Rules",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "manual_override_permissions",
+   "fieldtype": "Code",
+   "label": "Manual Override Permissions",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "section_break_2",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-11-10 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Hospital Operations",
+ "name": "Bed Allocation Policy",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Hospital Operations Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Bed Manager"
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nursing Supervisor"
+  }
+ ],
+ "search_fields": "policy_name,version",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "policy_name",
+ "track_changes": 1
+}

@@ -1,0 +1,30 @@
+[project]
+name = "hospital_operations"
+authors = [
+    { name = "Hospital Operations", email = "operations@example.invalid" },
+]
+description = "Operational Bed Allocation System for Frappe Health / ERPNext / HRMS"
+requires-python = ">=3.10"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = []
+
+[project.optional-dependencies]
+allocation = ["ortools>=9.8,<10"]
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.bench.frappe-dependencies]
+frappe = ">=15.0.0,<16.0.0"
+erpnext = ">=15.0.0,<16.0.0"
+hrms = ">=15.0.0,<16.0.0"
+healthcare = ">=15.0.0,<16.0.0"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 99
+
+[tool.ruff.lint]
+select = ["F", "I"]

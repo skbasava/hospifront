@@ -1,0 +1,260 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:BAR-{#####}",
+ "creation": "2026-11-10 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "patient",
+  "patient_name",
+  "inpatient_record",
+  "column_break_1",
+  "source",
+  "priority",
+  "care_level",
+  "section_break_1",
+  "requested_at",
+  "requested_by",
+  "status",
+  "column_break_2",
+  "company",
+  "medical_department",
+  "policy_version",
+  "clinical_approval_reference",
+  "idempotency_key",
+  "section_break_2",
+  "clinical_requirements",
+  "section_break_3",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "patient",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Patient",
+   "options": "Patient",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fetch_from": "patient.patient_name",
+   "fieldname": "patient_name",
+   "fieldtype": "Data",
+   "label": "Patient Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "inpatient_record",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Inpatient Record",
+   "options": "Inpatient Record"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Direct Admission",
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Source",
+   "options": "ED\nOPD\nOT\nTransfer\nDirect Admission",
+   "reqd": 1
+  },
+  {
+   "default": "Routine",
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Priority",
+   "options": "Emergency\nUrgent\nRoutine",
+   "reqd": 1
+  },
+  {
+   "fieldname": "care_level",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Care Level",
+   "options": "ICU\nGeneral\nSpecial\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_1",
+   "fieldtype": "Section Break",
+   "label": "Lifecycle"
+  },
+  {
+   "default": "Now",
+   "fieldname": "requested_at",
+   "fieldtype": "Datetime",
+   "label": "Requested At",
+   "reqd": 1
+  },
+  {
+   "default": "__user",
+   "fieldname": "requested_by",
+   "fieldtype": "Link",
+   "label": "Requested By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "default": "PENDING",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "PENDING\nELIGIBILITY_CHECKED\nPROPOSED\nRESERVED\nALLOCATED\nWAITLISTED\nCANCELLED",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "medical_department",
+   "fieldtype": "Link",
+   "label": "Medical Department",
+   "options": "Medical Department"
+  },
+  {
+   "fieldname": "policy_version",
+   "fieldtype": "Data",
+   "label": "Policy Version"
+  },
+  {
+   "fieldname": "clinical_approval_reference",
+   "fieldtype": "Data",
+   "label": "Clinical Approval Reference"
+  },
+  {
+   "fieldname": "idempotency_key",
+   "fieldtype": "Data",
+   "label": "Idempotency Key",
+   "search_index": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "section_break_2",
+   "fieldtype": "Section Break",
+   "label": "Clinical Requirements"
+  },
+  {
+   "fieldname": "clinical_requirements",
+   "fieldtype": "Table",
+   "label": "Clinical Requirements",
+   "options": "Bed Clinical Requirement"
+  },
+  {
+   "fieldname": "section_break_3",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-11-10 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Hospital Operations",
+ "name": "Bed Allocation Request",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Hospital Operations Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Bed Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Admission Coordinator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nursing Supervisor",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Healthcare Administrator",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "search_fields": "patient,inpatient_record,status",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "patient",
+ "track_changes": 1
+}
