@@ -16,7 +16,8 @@ maintenance window.
 - Bench serving the target site, with `frappe`, `erpnext`, `hrms` and
   `healthcare` installed (verified remotely: 15.126.0 / 15.124.5 / 15.64.8 /
   15.2.5).
-- The `hospital_operations` app directory available on the server.
+- The `hospifront` repository available to Bench. Its root is the
+  `hospital_operations` Frappe app.
 - A current backup and written rollback approval.
 - No seeding of patients, beds or employees as part of this deployment.
 
@@ -34,8 +35,9 @@ Record the backup paths. Do not continue if the backup fails.
 ```bash
 cd /path/to/frappe-bench
 
-# Make the app available to the bench (path or git URL)
-bench get-app /path/to/hospital_operations
+# Clone the repository branch containing the Frappe app
+bench get-app --branch bff_development \
+  https://github.com/skbasava/hospifront.git
 
 # Install on the site (runs before_install, DocType sync, after_install)
 bench --site frappe.abhidigitech.com install-app hospital_operations

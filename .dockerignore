@@ -1,7 +1,0 @@
-node_modules
-dist
-bff/node_modules
-bff/dist
-**/.env
-*.log
-.git

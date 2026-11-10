@@ -1,15 +1,19 @@
-"""Phase 0 read-only schema discovery for the Frappe site.
+"""Read-only schema discovery for a local or remote Frappe site.
 
-Produces artifacts/frappe_schema_report.json and prints a credential-free summary.
+Select the target with FRAPPE_TARGET=local|remote or --target.
+Produce artifacts/frappe_schema_report.json for remote and
+artifacts/frappe_schema_report_local.json for local, unless --output is given.
 
 Run:
-    python3 tools/inspect_remote.py
+    python3 tools/inspect_remote.py --target remote
+    FRAPPE_TARGET=local python3 tools/inspect_remote.py
 
 No POST/PUT/DELETE requests are made. Only GET endpoints are used.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -18,10 +22,11 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from remote_client import FrappeClient, FrappeClientError  # noqa: E402
+from remote_client import TARGETS, FrappeClient, FrappeClientError  # noqa: E402
 
 ARTIFACT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "artifacts")
-ARTIFACT_PATH = os.path.join(ARTIFACT_DIR, "frappe_schema_report.json")
+REMOTE_ARTIFACT_PATH = os.path.join(ARTIFACT_DIR, "frappe_schema_report.json")
+LOCAL_ARTIFACT_PATH = os.path.join(ARTIFACT_DIR, "frappe_schema_report_local.json")
 
 KEY_DOCTYPES = [
     "Patient",
@@ -73,7 +78,30 @@ def _trim(detail):
     return str(detail)[:400] if detail else None
 
 
-def main() -> int:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Read-only Frappe schema discovery")
+    parser.add_argument(
+        "--target",
+        choices=TARGETS,
+        default=None,
+        help="Override FRAPPE_TARGET (local or remote)",
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Report path; defaults to a target-specific file under artifacts/",
+    )
+    return parser.parse_args(argv)
+
+
+def _artifact_path(target: str, output: str | None = None) -> str:
+    if output:
+        return os.path.abspath(output)
+    return REMOTE_ARTIFACT_PATH if target == "remote" else LOCAL_ARTIFACT_PATH
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv)
     errors: list[dict] = []
     report: dict = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -81,19 +109,23 @@ def main() -> int:
     }
 
     try:
-        client = FrappeClient()
+        client = FrappeClient(target=args.target)
     except FrappeClientError as exc:
         print(f"CONFIG ERROR: {exc}", file=sys.stderr)
         return 2
 
+    report["target"] = client.config.target
     report["client_config"] = client.config.redacted()
+    artifact_path = _artifact_path(client.config.target, args.output)
+    site_label = f" ({client.config.site})" if client.config.site else ""
+    print(f"Target: {client.config.target}{site_label} {client.config.base_url}")
 
     # 1. Authentication
     user, err = safe("get_logged_user", client.authenticate)
     if err:
         errors.append(err)
         print(f"AUTH FAILED: {err['message']} (status {err['status']})", file=sys.stderr)
-        _write(report, errors)
+        _write(report, errors, artifact_path)
         return 3
     report["authenticated_user"] = user
     print(f"Authenticated as: {user}")
@@ -222,8 +254,8 @@ def main() -> int:
         print(f"  [ok]     {dt}: {len(fields)} fields, {len(permissions)} permission rows (module {meta.get('module')})")
 
     report["errors"] = errors
-    _write(report, errors)
-    print(f"\nReport written to {ARTIFACT_PATH}")
+    _write(report, errors, artifact_path)
+    print(f"\nReport written to {artifact_path}")
     if errors:
         print(f"Encountered {len(errors)} API error(s):")
         for e in errors:
@@ -233,10 +265,12 @@ def main() -> int:
     return 0
 
 
-def _write(report: dict, errors: list[dict]) -> None:
-    os.makedirs(ARTIFACT_DIR, exist_ok=True)
+def _write(report: dict, errors: list[dict], path: str) -> None:
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
     report["errors"] = errors
-    with open(ARTIFACT_PATH, "w", encoding="utf-8") as fh:
+    with open(path, "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, sort_keys=False)
 
 

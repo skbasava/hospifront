@@ -1,10 +1,21 @@
-"""Read-only Frappe REST client for Phase 0 schema discovery.
+"""Read-only Frappe REST client for schema discovery and integration checks.
 
-Configuration is read exclusively from environment variables:
-    FRAPPE_BASE_URL
-    FRAPPE_API_KEY
-    FRAPPE_API_SECRET
-    FRAPPE_TIMEOUT (optional, default 15)
+Target selection:
+    FRAPPE_TARGET=local|remote (default: remote)
+
+Local target:
+    FRAPPE_LOCAL_BASE_URL (default: http://127.0.0.1:8000)
+    FRAPPE_LOCAL_API_KEY
+    FRAPPE_LOCAL_API_SECRET
+    FRAPPE_LOCAL_SITE (optional label)
+    FRAPPE_LOCAL_TIMEOUT (optional, default 15)
+
+Remote target:
+    FRAPPE_REMOTE_BASE_URL or legacy FRAPPE_BASE_URL
+    FRAPPE_REMOTE_API_KEY or legacy FRAPPE_API_KEY
+    FRAPPE_REMOTE_API_SECRET or legacy FRAPPE_API_SECRET
+    FRAPPE_REMOTE_SITE (optional label)
+    FRAPPE_REMOTE_TIMEOUT or legacy FRAPPE_TIMEOUT (optional, default 15)
 
 The client never prints or logs credential values, and TLS verification is
 always enabled. Only GET requests are permitted in discovery mode.
@@ -18,6 +29,10 @@ from dataclasses import dataclass
 from typing import Any
 
 import requests
+
+TARGETS = ("local", "remote")
+DEFAULT_TARGET = "remote"
+DEFAULT_LOCAL_BASE_URL = "http://127.0.0.1:8000"
 
 
 class FrappeClientError(Exception):
@@ -36,25 +51,79 @@ class ClientConfig:
     api_key: str
     api_secret: str
     timeout: float = 15.0
+    target: str = DEFAULT_TARGET
+    site: str | None = None
 
     @classmethod
-    def from_env(cls) -> "ClientConfig":
-        missing = [
-            name
-            for name in ("FRAPPE_BASE_URL", "FRAPPE_API_KEY", "FRAPPE_API_SECRET")
-            if not os.environ.get(name)
-        ]
-        if missing:
-            raise FrappeClientError(None, f"Missing environment variables: {', '.join(missing)}")
+    def from_env(cls, target: str | None = None) -> ClientConfig:
+        target = _normalise_target(target or os.environ.get("FRAPPE_TARGET", DEFAULT_TARGET))
+
+        if target == "local":
+            base_url = (
+                os.environ.get("FRAPPE_LOCAL_BASE_URL") or DEFAULT_LOCAL_BASE_URL
+            ).strip().rstrip("/")
+            api_key_name = "FRAPPE_LOCAL_API_KEY"
+            api_secret_name = "FRAPPE_LOCAL_API_SECRET"
+            missing = [
+                name for name in (api_key_name, api_secret_name) if not os.environ.get(name)
+            ]
+            if missing:
+                raise FrappeClientError(
+                    None,
+                    f"Missing environment variables for local target: {', '.join(missing)}",
+                )
+            api_key = os.environ[api_key_name]
+            api_secret = os.environ[api_secret_name]
+            timeout = _parse_timeout(
+                os.environ.get("FRAPPE_LOCAL_TIMEOUT") or os.environ.get("FRAPPE_TIMEOUT")
+            )
+            site = os.environ.get("FRAPPE_LOCAL_SITE") or None
+        else:
+            base_url = (
+                os.environ.get("FRAPPE_REMOTE_BASE_URL")
+                or os.environ.get("FRAPPE_BASE_URL")
+                or ""
+            ).strip().rstrip("/")
+            api_key = (
+                os.environ.get("FRAPPE_REMOTE_API_KEY") or os.environ.get("FRAPPE_API_KEY") or ""
+            )
+            api_secret = (
+                os.environ.get("FRAPPE_REMOTE_API_SECRET")
+                or os.environ.get("FRAPPE_API_SECRET")
+                or ""
+            )
+            missing = [
+                name
+                for name, value in (
+                    ("FRAPPE_REMOTE_BASE_URL or FRAPPE_BASE_URL", base_url),
+                    ("FRAPPE_REMOTE_API_KEY or FRAPPE_API_KEY", api_key),
+                    ("FRAPPE_REMOTE_API_SECRET or FRAPPE_API_SECRET", api_secret),
+                )
+                if not value
+            ]
+            if missing:
+                raise FrappeClientError(
+                    None,
+                    f"Missing environment variables for remote target: {', '.join(missing)}",
+                )
+            timeout = _parse_timeout(
+                os.environ.get("FRAPPE_REMOTE_TIMEOUT") or os.environ.get("FRAPPE_TIMEOUT")
+            )
+            site = os.environ.get("FRAPPE_REMOTE_SITE") or None
+
         return cls(
-            base_url=os.environ["FRAPPE_BASE_URL"].rstrip("/"),
-            api_key=os.environ["FRAPPE_API_KEY"],
-            api_secret=os.environ["FRAPPE_API_SECRET"],
-            timeout=float(os.environ.get("FRAPPE_TIMEOUT", "15")),
+            base_url=base_url,
+            api_key=api_key,
+            api_secret=api_secret,
+            timeout=timeout,
+            target=target,
+            site=site,
         )
 
     def redacted(self) -> dict[str, Any]:
         return {
+            "target": self.target,
+            "site": self.site,
             "base_url": self.base_url,
             "api_key": "***redacted***",
             "api_secret": "***redacted***",
@@ -62,11 +131,31 @@ class ClientConfig:
         }
 
 
+def _normalise_target(value: str | None) -> str:
+    target = str(value or "").strip().lower()
+    if target not in TARGETS:
+        raise FrappeClientError(
+            None,
+            f"Invalid FRAPPE_TARGET {value!r}; expected one of: {', '.join(TARGETS)}",
+        )
+    return target
+
+
+def _parse_timeout(value: str | None) -> float:
+    try:
+        timeout = float(value or "15")
+    except ValueError as exc:
+        raise FrappeClientError(None, "Invalid FRAPPE timeout", value) from exc
+    if timeout <= 0:
+        raise FrappeClientError(None, "FRAPPE timeout must be positive", value)
+    return timeout
+
+
 class FrappeClient:
     """Read-only client. Mutating verbs are intentionally not implemented."""
 
-    def __init__(self, config: ClientConfig | None = None):
-        self.config = config or ClientConfig.from_env()
+    def __init__(self, config: ClientConfig | None = None, target: str | None = None):
+        self.config = config or ClientConfig.from_env(target)
         self.session = requests.Session()
         self.session.headers.update(
             {
