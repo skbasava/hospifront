@@ -1,9 +1,13 @@
 # Operational Bed Allocation System — Implementation Plan
 
-**Status:** Phase 0 approved; Phases 1–3 scaffolded locally. No site
-installation, migration or deployment has been performed; remote installation
-requires Bench/server access (the API token cannot install apps).
-**Site:** `https://frappe.abhidigitech.com` (read-only discovery only)
+**Status:** Phase 0 approved; Phases 1–7 implemented. Installed and validated
+on the local Bench site `hospital.localhost` (app version `0.1.0`, commit
+`ccb2f6e` plus the Phase 4–7 working tree). The full Bench suite passes 150/150,
+including API contracts, the permission matrix and performance benchmarks.
+Remote installation on `frappe.abhidigitech.com` has not been performed; it
+requires Bench/server access and approval (the API token cannot install apps).
+**Sites:** local `hospital.localhost`; remote `https://frappe.abhidigitech.com`
+(read-only discovery only)
 **Companion analysis:** `docs/01-existing-frappe-schema-analysis.md`
 **Raw schema snapshot:** `artifacts/frappe_schema_report.json`
 
@@ -59,14 +63,15 @@ future frontend
 hospital_operations
   api/            beds, requests, allocation, housekeeping, staffing, health
   bed_allocation/ eligibility, priority, cost_model, optimizer (OR-Tools min-cost flow),
-                  reservation, transaction
+                  reservation, transaction, staffing, staffing_service, housekeeping
   integrations/   marley, erpnext, hrms
-  tasks.py        expiry sweeper, reconciliation, staffing snapshot refresh
+  tasks.py        expiry sweeper, reconciliation, staffing snapshot refresh,
+                  housekeeping task reconciliation
   hospital_operations/doctype/   custom DocTypes
   fixtures/       roles, custom fields (migration-safe)
 tools/            remote_client.py, inspect_remote.py (done)
 tests/            eligibility, optimizer, reservation, concurrency, staffing, api
-docs/             01..07
+docs/             01..08
 ```
 
 **Reuse rules**
@@ -113,7 +118,8 @@ docs/             01..07
 - Idempotency keys on request + reservation + confirm.
 - Optimistic `version` check rejects stale proposals.
 - Background jobs: expired-reservation cleanup, reservation↔occupancy
-  reconciliation, staffing snapshot refresh.
+  reconciliation, staffing snapshot refresh and housekeeping task
+  reconciliation.
 - Marley boundary documented with recoverable reconciliation if its workflow
   cannot join the same transaction.
 
@@ -121,14 +127,17 @@ docs/             01..07
 
 ## 6. API Surface (whitelisted methods)
 
-`hospital_operations.api.{beds,requests,allocation,housekeeping,staffing}`
-covering list/availability, request create/list, optimize/result,
-confirm/cancel/transfer, housekeeping start/complete, staffing capacity, health.
-Token auth, role checks, POST-only mutations, pagination, idempotency,
-consistent errors, no guest access, no `ignore_permissions` shortcuts.
+`hospital_operations.api.{beds,requests,allocation,housekeeping,staffing,
+post_operative,health}` covering list/availability, request create/list,
+optimize/result, confirm/cancel/transfer/discharge, housekeeping
+start/complete/verify/cancel, staffing capacity, post-op hold lifecycle and the
+health probe. Token auth, role checks, explicit GET/POST decorators,
+pagination, idempotency, consistent errors, no guest access, no
+`ignore_permissions` shortcuts. Contracts and the permission matrix are in
+`docs/05-api-contracts.md`.
 
-**Roles to create:** Bed Manager, Admission Coordinator, Nursing Supervisor,
-Housekeeping Staff, Hospital Operations Administrator.
+**Roles (implemented):** Bed Manager, Admission Coordinator, Nursing
+Supervisor, Housekeeping Staff, Hospital Operations Administrator.
 
 ---
 
@@ -137,13 +146,13 @@ Housekeeping Staff, Hospital Operations Administrator.
 | Phase | Scope | Exit criteria / tests |
 |---|---|---|
 | **0 — Discovery (done)** | Repo + remote read-only schema analysis, mapping, risks | This plan + `01-existing-frappe-schema-analysis.md` approved |
-| **1 — Foundation (scaffolded)** | App, 12 DocTypes, 5 roles, additive HSU fields, policy+audit scaffolding, indexes/constraint | Code + docs complete; install/migrate still requires approval; Frappe tests pending a bench |
-| **2 — State & Eligibility (scaffolded)** | State machine, operational readiness service, capabilities, Stage 1 eligibility engine | 22 eligibility + 7 state tests pass locally; site-backed validation pending install |
-| **3 — Allocation Engine (scaffolded)** | OR-Tools min-cost flow, cost/priority model, explainable proposals, run persistence | 10 optimiser + 9 cost/priority tests pass locally; site-backed execution pending install |
-| **4 — Reservation & ADT** | Transaction-safe claims, Marley admission/transfer/discharge | Concurrency, duplicate confirm, expiry, stale, rollback tests |
-| **5 — HRMS & Housekeeping** | Staffed capacity, shift/leave/attendance, housekeeping gates | Leave/absent/competency/ratio/shift/ward-change tests |
-| **6 — OT & ERPNext** | Post-op time-window reservations, billing integration points | Surgical delay/cancel/no-ICU, discharge reconciliation tests |
-| **7 — API & Validation** | Final APIs, permission tests, benchmarks, deployment docs | Security matrix tests, p50/p95/p99 benchmarks |
+| **1 — Foundation (done)** | App, 12 DocTypes, 5 roles, additive HSU fields, policy+audit scaffolding, indexes/constraint | Installed on `hospital.localhost`; `validate_installation` `ok: true`; 4 DocType + 2 role Bench tests pass |
+| **2 — State & Eligibility (done)** | State machine, operational readiness service, capabilities, Stage 1 eligibility engine | 22 eligibility + 7 state tests pass; module installed and health probe OK |
+| **3 — Allocation Engine (done)** | OR-Tools min-cost flow, cost/priority model, explainable proposals, run persistence | 10 optimiser + 9 cost/priority tests pass; OR-Tools 9.15.6755 in Bench env |
+| **4 — Reservation & ADT (done)** | Transaction-safe claims, Marley admission/transfer/discharge | 11 reservation + 2 concurrency tests; full Bench suite 67/67; ruff/compile pass |
+| **5 — HRMS & Housekeeping (done)** | Live staffed capacity from shifts/attendance/leave/competency, derived snapshots, housekeeping lifecycle and READY gate | 17 pure staffing + 10 HRMS integration + 11 housekeeping tests; full Bench suite 105/105; ruff/compile pass |
+| **6 — OT & ERPNext (done)** | Post-op time-window holds, delay/cancel/preemption/revalidation, read-only ERPNext billing and discharge reconciliation | 7 pure window + 12 post-op + 6 billing integration tests; full Bench suite 130/130; ruff/compile pass |
+| **7 — API & Validation (done)** | Final APIs, permission tests, benchmarks, deployment docs | 11 API contract + 9 permission tests; p50/p95/p99 benchmarks recorded; full Bench suite 150/150; ruff/compile pass |
 
 Deployment, migrate and production data changes require explicit approval at
 each gate. No automatic deployment.

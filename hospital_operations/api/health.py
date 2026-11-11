@@ -4,7 +4,7 @@ from frappe.utils import now
 from hospital_operations import __version__
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["GET"])
 def status():
     """Authenticated readiness probe. Never exposes secrets or patient data."""
     if frappe.session.user == "Guest":

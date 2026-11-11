@@ -13,9 +13,15 @@ the authoritative patient, admission or occupancy records.
 
 ## Status
 
-Phases 1–3 (Foundation, State & Eligibility, Allocation Engine) scaffolding.
-No site has been modified and no migration has been run from this repository.
-See `docs/` for the approved analysis, implementation plan and phase reports.
+Phases 1–7 (Foundation, State & Eligibility, Allocation Engine, Reservation &
+ADT, HRMS & Housekeeping, OT & ERPNext, APIs & Validation) are implemented. The
+app is installed and validated on the local Bench site `hospital.localhost`;
+the remote site has not been modified and no migration has been run from this
+repository. The full Bench suite passes 150/150, including API contracts,
+permission-matrix, concurrency and benchmark validation. See `docs/` for the
+analysis, implementation plan, API contracts (`docs/05-api-contracts.md`),
+concurrency design, test reports and the
+[final implementation report](docs/08-final-implementation-report.md).
 
 ## Installation (requires explicit approval)
 

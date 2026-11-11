@@ -1,9 +1,12 @@
-# Domain Model and Schema (Phase 1)
+# Domain Model and Schema (Phases 1–7)
 
-**Status:** Scaffolded as native Frappe v15 DocTypes in
-`hospital_operations/`. Not installed on any site; no `bench migrate` has been
-run. Field definitions below are generated from the committed DocType JSON and
-are the authoritative description of the current code.
+**Status:** Implemented as native Frappe v15 DocTypes in
+`hospital_operations/`. Installed and validated on the local Bench site
+`hospital.localhost` (app `0.1.0`, commit `ccb2f6e`). No `bench migrate` has run
+because `redis_cache` is stopped; `after_install` applied the schema, roles,
+custom fields, indexes and constraint. The remote site is unchanged. Field
+definitions below are generated from the committed DocType JSON and are the
+authoritative description of the current code.
 
 **Authoritative existing records (never duplicated):**
 
@@ -175,8 +178,21 @@ Exceptional paths: `MAINTENANCE`, `BLOCKED`, `ISOLATION_CLEANING`.
 `status='ACTIVE' AND reservation_type='IMMEDIATE'`, otherwise `NULL`, with a
 unique index `uq_bres_active_immediate_claim`. MariaDB therefore allows at most
 one active immediate claim per physical bed, independent of application code.
-Future/time-window reservations require overlap checks under row locks
-(Phase 4).
+
+**Post-operative holds (Phase 6):** `hospital_operations.bed_allocation.post_operative`
+creates `POST_OPERATIVE` reservations with a validated `start_at`/`expires_at`
+window. The bed is marked `RESERVED` immediately, so the guaranteed postoperative
+bed cannot be consumed by another allocation. Creation, rescheduling and
+confirmation lock the reservation, request, inpatient record, bed and operational
+state, then query overlapping `ACTIVE` holds with `FOR UPDATE`; adjacent
+half-open windows are allowed, overlapping windows are rejected. Confirmation
+revalidates clinical eligibility, rejects expired/blocked/reassigned beds, then
+uses Marley admission for scheduled patients or Marley transfer for an already
+admitted patient. Cancellation, expiry and emergency preemption release the bed
+only when no other active reservation remains. Emergency preemption requires an
+`Emergency` request and a non-empty clinical approval reference and writes a
+`MANUAL_OVERRIDE` audit event. CP-SAT is not used; a single-bed hold does not
+justify time-window scheduling.
 
 ---
 
@@ -199,6 +215,15 @@ Future/time-window reservations require overlap checks under row locks
 | 11 | `notes` | Small Text | |
 
 Snapshots are derived evidence, not a second occupancy source of truth.
+
+**Live evaluation (Phase 5):** allocation and eligibility use
+`bed_allocation.staffing_service`, which combines approved policy rules with
+read-only HRMS signals (Employee status, Ward Nurse Assignment, submitted
+Shift Assignment and Attendance, approved Leave Application, optional Employee
+Checkin) and live Marley occupancy. `Bed Staffing Snapshot` rows are periodic
+reporting evidence, not the admission gate. If the active policy has no
+`staffing` object, capacity checks are disabled (`None`) and allocation is not
+blocked by staffing.
 
 ---
 
@@ -224,6 +249,32 @@ Snapshots are derived evidence, not a second occupancy source of truth.
 
 **Validation:** unique `(policy_name, version)`; all JSON fields must parse.
 Clinical thresholds live here, never in Python defaults.
+
+**Staffing configuration (Phase 5, nested in `eligibility_rules`):**
+
+```json
+{
+  "staffing": {
+    "ratio": {"ICU": 2, "General": 6, "Special": 4},
+    "competency": {"ICU": "ICU", "General": "GENERAL"},
+    "minimum_nurses": {"ICU": 1},
+    "presence_source": "attendance",
+    "count_half_day": false,
+    "count_work_from_home": true
+  }
+}
+```
+
+`ratio` is patients per nurse. A scheduled nurse is never counted as present;
+default `presence_source` is submitted `Attendance`. `checkin` uses the latest
+Employee Checkin (`IN`/`OUT`), and `scheduled` only counts active on-shift
+employees. Approved leave always excludes a nurse. Capacity is
+`min(physical_beds, qualified_nurses * ratio)`, or `0` below
+`minimum_nurses`. Missing per-care-level entries fall back to the `Other` key;
+if no ratio exists at all, the conservative default is 1 patient per nurse, a
+missing competency means no competency filter for that care level, and a
+missing minimum means 0. Hospitals must configure and clinically approve these
+values before enabling a staffing policy.
 
 ---
 
@@ -326,7 +377,16 @@ stores only operational JSON.
 
 **Transitions:** `PENDING -> IN_PROGRESS -> COMPLETED -> VERIFIED`;
 `CANCELLED` only before verification. A bed may only return to `READY` after
-the linked task is `VERIFIED` (wired in Phase 5).
+the latest task is `VERIFIED` (implemented in Phase 5).
+
+**Phase 5 lifecycle service:** `bed_allocation.housekeeping` creates one open
+task per cleaning cycle (idempotent), starts it (bed ->
+`CLEANING_IN_PROGRESS`/`ISOLATION_CLEANING`), completes it (bed remains in
+cleaning), verifies it (bed -> `READY`), or cancels it (bed state unchanged).
+`operational.set_state` rejects `CLEANING_* -> READY` unless the latest
+Housekeeping Task is `VERIFIED`, so a direct `mark_ready` cannot bypass
+housekeeping. Discharge and transfer create a `DISCHARGE_CLEAN` task
+automatically; a daily reconciliation job fills any missing task.
 
 ---
 
@@ -407,7 +467,27 @@ Permission tests live in `hospital_operations/tests/test_roles.py`
 
 ---
 
-## 17. Explicit Non-Goals in This Schema
+## 17. Billing Integration Points (Phase 6)
+
+`hospital_operations.integrations.erpnext` is a read-only boundary:
+
+- `get_service_unit_tariff(service_unit)` resolves the Healthcare Service Unit
+  Type, billable flag, inpatient occupancy flag, Item, rate and company currency.
+- `get_occupancy_billing(inpatient_record)` reports each Marley occupancy row,
+  its tariff, invoice flag, active/ended period, chargeable hours and days.
+- `get_admission_invoices(inpatient_record)` lists non-cancelled Sales Invoices
+  for the patient. Sales Invoices have no direct Inpatient Record link, so this
+  is reference data, not admission-level reconciliation.
+- `discharge_reconciliation(inpatient_record)` reuses Marley's own
+  `get_pending_invoices`, reports the Healthcare Settings override, blocking
+  status, occupancy, invoices and lookup errors. It never creates an invoice and
+  never changes allocation, occupancy or billing rows.
+
+Billing is not a prerequisite for emergency placement: the caller decides how to
+handle `blocking`, and `reservation`/`post_operative` never call these helpers
+before an ADT operation.
+
+## 18. Explicit Non-Goals in This Schema
 
 - No duplicate `Patient`, `Inpatient Record`, occupancy or employee table.
 - No bed/room table replacing `Healthcare Service Unit`.
@@ -415,11 +495,17 @@ Permission tests live in `hospital_operations/tests/test_roles.py`
 - No hidden "discharged" shortcut that frees a bed without cleaning.
 - No clinical diagnosis/prescription data in audit events.
 
-## 18. Open Schema Risks
+## 19. Open Schema Risks
 
-1. Marley server-side admission validation has not been exercised on a bench.
+1. Marley admission/transfer/discharge is exercised on a bench with synthetic
+   records; site-specific validations and production data still require a
+   controlled pilot.
 2. The generated-column constraint assumes MariaDB (confirmed platform).
-3. Post-operative overlapping reservations rely on row-level locking added in
-   Phase 4, not yet implemented.
+3. Post-operative time-window overlap checks and OT holds are implemented with
+   row locks. A hold blocks the bed immediately for the whole window, so long
+   holds reduce operational capacity; hospitals must choose windows that balance
+   guarantee and utilisation.
 4. Role permissions must be re-tested with a least-privilege service user; the
    discovery token is `Administrator`.
+5. Staffing rules and ratios are hospital policy inputs and require clinical
+   approval before production use.

@@ -11,6 +11,7 @@ import frappe
 from frappe import _
 
 from hospital_operations.bed_allocation.state import (
+    CLEANING_STATES,
     InvalidBedTransition,
     assert_transition,
 )
@@ -80,6 +81,16 @@ def set_state(bed, new_state, reason=None, expected_version=None, actor=None):
         assert_transition(previous, new_state)
     except InvalidBedTransition as exc:
         frappe.throw(str(exc))
+
+    if new_state == "READY" and previous in CLEANING_STATES:
+        from hospital_operations.bed_allocation import housekeeping
+
+        if not housekeeping.has_verified_cleaning(bed):
+            frappe.throw(
+                _(
+                    "Bed {0} cannot be marked READY until housekeeping is verified."
+                ).format(bed)
+            )
 
     doc.state = new_state
     doc.reason = reason

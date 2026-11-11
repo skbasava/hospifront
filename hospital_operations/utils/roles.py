@@ -35,3 +35,7 @@ def require_any_role(*roles):
 
 def require_operational_role():
     require_any_role(*OPERATIONAL_ROLES, *ADMIN_ROLES)
+
+
+def has_app_permission():
+    return has_any_role(*OPERATIONAL_ROLES, *ADMIN_ROLES)

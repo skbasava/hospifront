@@ -8,6 +8,7 @@ does not write occupancy.
 import frappe
 from frappe.utils import get_datetime, now_datetime
 
+from hospital_operations.bed_allocation import staffing_service
 from hospital_operations.bed_allocation.eligibility import (
     BedContext,
     ClinicalRequirement,
@@ -187,19 +188,13 @@ def _load_active_reservations(names):
 
 
 def _load_staffing(wards):
+    """Return live ``ward -> bool | None`` staffing availability.
+
+    ``None`` means the active policy has no staffing configuration, so the
+    constraint is deliberately not enforced. The snapshot DocType remains a
+    historical report, not the live admission gate.
+    """
+
     if not wards:
         return {}
-    rows = frappe.get_all(
-        "Bed Staffing Snapshot",
-        filters={"ward": ("in", list(wards))},
-        fields=["ward", "staffed_bed_capacity", "current_patients"],
-        order_by="calculated_at desc",
-        limit_page_length=0,
-    )
-    latest = {}
-    for row in rows:
-        latest.setdefault(row.ward, row)
-    return {
-        ward: (row.staffed_bed_capacity or 0) - (row.current_patients or 0) > 0
-        for ward, row in latest.items()
-    }
+    return staffing_service.staffing_availability(wards)

@@ -258,3 +258,27 @@ revalidation under lock and stale-proposal rejection are Phase 4.
 6. Runs above 1,000 requests are rejected rather than batched.
 7. Proposals are advisory; no confirmation, lock, or stale revalidation yet.
 8. Post-operative time windows / CP-SAT scheduling are not implemented.
+
+## 8. Post-Operative Holds (Phase 6 Addendum)
+
+Post-operative beds are not selected by the min-cost-flow optimiser. The OT
+workflow creates a `Bed Allocation Request` with `source=OT`, then
+`bed_allocation.post_operative.create_reservation` validates a half-open
+`start_at`/`expires_at` window and places a `POST_OPERATIVE` hold.
+
+- Mandatory clinical eligibility is evaluated at creation and again at
+  confirmation; a hard constraint can never be bypassed by a window preference.
+- Overlapping active holds for the same bed are rejected under row locks.
+- The bed enters `RESERVED` immediately, so the postoperative guarantee takes
+  precedence over short-term capacity.
+- Delays use `reschedule`; cancellation and expiry release the bed only when no
+  other active reservation remains.
+- Emergency preemption requires an `Emergency` request and a non-empty clinical
+  approval reference, writes `MANUAL_OVERRIDE`, and waitlists the OT request.
+- Confirmation revalidates the bed, then uses Marley admission or transfer. It
+  never writes occupancy directly.
+
+CP-SAT is intentionally not used: this phase schedules independent single-bed
+holds, not a multi-resource theatre/ICU optimisation problem. The data model is
+ready for a future CP-SAT scheduler if operating-theatre slots, surgeon
+availability and staffed ICU capacity must be optimised together.

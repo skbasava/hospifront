@@ -1,4 +1,4 @@
-# Deployment and Rollback (Phase 1)
+# Deployment and Rollback (Phases 1–7)
 
 **Important:** the REST API token used for discovery is an `Administrator`
 token. It can read/write records but **cannot install a Frappe app**. App
@@ -78,7 +78,18 @@ Health probe after login:
 GET /api/method/hospital_operations.api.health.status
 ```
 
-It requires authentication and returns no patient data or secrets.
+It requires authentication, is GET-only and returns no patient data or secrets.
+
+API smoke check (replace the token with a least-privilege token):
+
+```bash
+curl -sS -X GET \
+  "https://frappe.abhidigitech.com/api/method/hospital_operations.api.beds.list" \
+  -H "Authorization: token ${FRAPPE_API_KEY}:${FRAPPE_API_SECRET}"
+```
+
+All mutating endpoints are POST-only; see `docs/05-api-contracts.md` for payloads,
+roles and error codes.
 
 ## 5. Seeding (NOT part of this deployment)
 
@@ -132,7 +143,18 @@ bench remove-app hospital_operations
 
 ## 8. Current Status
 
-Phase 1 has **not** been installed. Remote read-only verification on
-2026-11-10 confirmed the DocTypes and roles are absent. Phase 2 code is
-scaffolded locally; it cannot be exercised against a site until Phase 1 is
-installed.
+- **Local Bench (`hospital.localhost`): installed and validated.** The app was
+  fetched from `bff_development` (commit `ccb2f6e`) and installed at version
+  `0.1.0`. `validate_installation` returns `ok: true`; the health probe and the
+  full 150-test Bench suite pass. OR-Tools 9.15.6755 is installed in the Bench
+  environment. `bench migrate` has not run because schema changes were not
+  required in Phases 4–7; start the bench services before any future migration.
+- **Remote (`frappe.abhidigitech.com`): not installed.** Read-only verification
+  on 2026-11-10 confirmed the DocTypes and roles are absent. Installation
+  requires shell access to the remote Bench, a backup and an approved window.
+- No beds, patients, employees, policies or capabilities have been seeded on
+  either site. Benchmarks and tests create synthetic records and clean up or
+  roll back.
+- API contracts and the permission matrix are documented in
+  `docs/05-api-contracts.md`. Benchmarks are restricted to development sites by
+  `hospital_operations.benchmarks._assert_safe_site`.
